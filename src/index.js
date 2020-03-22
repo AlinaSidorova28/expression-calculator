@@ -1,25 +1,27 @@
-const REGEX = /\s/;
-let sign_priority = {
-            "+": 1,
-            "-": 1,
-            "*": 2,
-            "/": 2
+const REGEX = /[-+*\/()]|\d+/g;
+let priority = {
+            "+": 2,
+            "-": 2,
+            "*": 3,
+            "/": 3,
+            "(": 1,
+            ")": 1
         };
-function operation(a, b, sign) {
+function operation(b, a, sign) {
     if(sign == "+"){
-        return a+b;
+        return Number(a) + Number(b);
     }
     if(sign == "-"){
-        return a-b;
+        return Number(a) - Number(b);
     }
     if(sign == "*"){
-        return a*b;
+        return Number(a) * Number(b);
     }
     if(sign == "/") {
-        if(b === 0){
-            throw("TypeError: Division by zero.");
+        if(Number(b) === 0){
+            throw new Error("TypeError: Division by zero.");
         }
-        return a/b;
+        return Number(a) / Number(b);
     }
 }
 
@@ -29,42 +31,43 @@ function eval() {
 }
 
 function expressionCalculator(expr) {
-    let expr_array = expr.trim().split(REGEX);
-    let number_stack = [];
-    let sign_stack = [];
-    let len = Object.keys(sign_priority).length;
+    let expr_array = expr.match(REGEX);
+    if(expr_array.filter(item => item =='(').length !== expr_array.filter(item => item ==')').length) {
+        throw new Error('ExpressionError: Brackets must be paired');
+    }
+
+    let numbers = [];
+    let signs = [];
+    let len = Object.keys(priority).length;
     for(let item of expr_array){
-        if(!Object.keys(sign_priority).includes(item) && item !== "(" && item !== ")") {
-            number_stack.push(item);
+        if(!Object.keys(priority).includes(item)) {
+            numbers.push(item);
         }
-        if(Object.keys(sign_priority).includes(item)){
-            if(sign_stack.length === 0){
-                sign_stack.push(item);
+        if(Object.keys(priority).includes(item)){
+            if(priority[item] > priority[signs[signs.length - 1]] || item === "(" || signs.length === 0){
+                signs.push(item);
+            }
+            else if(item === ")"){
+                while(signs[signs.length - 1] !== "("){
+                    let res = operation(numbers.pop(), numbers.pop(), signs.pop());
+                    numbers.push(res);
+                }
+                signs.pop();
             }
             else {
-                if(sign_priority[item] > sign_priority[sign_stack[sign_stack.length - 1]]){
-                    sign_stack.push(item);
+                while(priority[item] <= priority[signs[signs.length - 1]]){
+                    let res = operation(numbers.pop(), numbers.pop(), signs.pop());
+                    numbers.push(res);
                 }
-                else {
-                    //console.log("sign_stack: " + sign_stack + " number_stack: " + number_stack);
-                    let res = operation(parseFloat(number_stack.slice(-2, -1)), parseFloat(number_stack.slice(-1)), sign_stack.slice(-1));
-                    number_stack.splice(-2, 2, res);
-                    sign_stack.splice(-1, 1, item);
-                }
-                //console.log("sign_stack: " + sign_stack + "number_stack: " + number_stack);
+                signs.push(item);
             }
         }
-        
     }
-    while(sign_stack.length !== 0){
-        let res = operation(parseFloat(number_stack.slice(-2, -1)), parseFloat(number_stack.slice(-1)), sign_stack.slice(-1));
-        //console.log("sign_stack: " + sign_stack + "number_stack: " + number_stack);
-        number_stack.splice(-2, 2, res);
-        sign_stack.pop();
-        //console.log("result: " + res);
-        
+    while(signs.length !== 0){
+        let res = operation(numbers.pop(), numbers.pop(), signs.pop());
+        numbers.push(res);
     }
-    return parseFloat(number_stack);
+    return Number(numbers);
 }
 
 module.exports = {
